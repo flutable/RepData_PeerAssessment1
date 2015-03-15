@@ -8,7 +8,8 @@ output:
 
 
 ## Loading and preprocessing the data
-```{r LoadAndPreProcChk,echo=TRUE}
+
+```r
 options(scipen = 1, digits = 2)                                          # numbers > 10^5 are denoted in scientific notation, 2 sig figs
 library(dplyr,     warn.conflicts = FALSE)
 library(stringr,   warn.conflicts = FALSE)
@@ -47,13 +48,20 @@ qplot(x=activity.by.day.sum$Date,y=activity.by.day.sum$TotalSteps,
       xlab="Date", ylab="Steps per day")
 ```
 
+```
+## Warning: Removed 8 rows containing missing values (position_stack).
+```
+
+![plot of chunk LoadAndPreProcChk](figure/LoadAndPreProcChk-1.png) 
+
 ## What is mean total number of steps taken per day?
-The mean number of steps taken per day is `r stepsmean`.  
-The median number of steps taken per day is `r stepsmedian`.
+The mean number of steps taken per day is 10766.19.  
+The median number of steps taken per day is 10765.
 
 ## What is the average daily activity pattern?
 The following code plots the mean number of steps per 5-minute interval across the observation period.  
-```{r AvgDailyPatternChk,echo=TRUE}
+
+```r
 activity.by.interval <- group_by(activity,as.factor(activity$interval))
 
 activity.by.interval.mean <- summarize(activity.by.interval, mean(steps,na.rm = TRUE))
@@ -69,22 +77,27 @@ qplot(x=activity.by.interval.mean$interval, y=activity.by.interval.mean$stepsper
     ylab("Mean steps per interval")
 ```
 
+![plot of chunk AvgDailyPatternChk](figure/AvgDailyPatternChk-1.png) 
+
 This code determines the maximum number of steps and the interval in which this maximum occurs.
-```{r MaxStepsIntervalChk,echo=TRUE}
+
+```r
 maxsteps <- max(activity.by.interval.mean$stepsperinterval)
 maxint   <- filter(activity.by.interval.mean, stepsperinterval== maxsteps)
 ```
 
-The maximum number of steps in a 5-minute interval is `r maxsteps`. This occurs between `r hour(maxint$interval)`:`r minute(maxint$interval) - 5` and `r hour(maxint$interval)`:`r minute(maxint$interval)`. 
+The maximum number of steps in a 5-minute interval is 206.17. This occurs between 8:30 and 8:35. 
 
 ## Inputting missing values
-There are `r nrow(activity) - sum(complete.cases(activity))` missing values in the Activity dataset, calculated from:  
-```{r CalcMissingValsChk,echo=TRUE}
+There are 2304 missing values in the Activity dataset, calculated from:  
+
+```r
 countNA <- nrow(activity) - sum(complete.cases(activity))
 ```
-To fill a missing interval value, the strategy is to replace the missing value by the mean value for the same period over the observation period (61 days). For example, if 00:40 to 00:45 is NA on 1 October, replace it with the mean calculated from all days where there is a value; in this case the mean is `r activity.by.interval.mean$stepsperinterval[10]`.
+To fill a missing interval value, the strategy is to replace the missing value by the mean value for the same period over the observation period (61 days). For example, if 00:40 to 00:45 is NA on 1 October, replace it with the mean calculated from all days where there is a value; in this case the mean is 1.47.
 
-```{r FillMissingValsChk,echo=TRUE}
+
+```r
 # Create a new dataset
 activitycomplete <- activity
 
@@ -93,7 +106,8 @@ activitycomplete$steps <- ifelse(is.na(activity$steps), activity.by.interval.mea
 ```
 
 The total steps per day, mean and median can now be recalculated as follows:
-```{r FilledTotalsChk,echo=TRUE}
+
+```r
 # mean total no. steps per day
 activitycomplete.by.day     <- group_by(activitycomplete, as.factor(activitycomplete$date))
 activitycomplete.by.day.sum <- summarize(activitycomplete.by.day, sum(steps))
@@ -112,14 +126,17 @@ qplot(x=activitycomplete.by.day.sum$Date,y=activitycomplete.by.day.sum$TotalStep
       xlab="Date", ylab="Steps per day - missing values filled")
 ```
 
-The mean number of steps taken per day calculated using the filled-in data is `r stepsmeancomplete`, compared with `r stepsmean` using the original data.  
-The median number of steps taken per day calculated using the filled-in data is `r stepsmediancomplete`, compared with `r stepsmedian` using the original data.
+![plot of chunk FilledTotalsChk](figure/FilledTotalsChk-1.png) 
+
+The mean number of steps taken per day calculated using the filled-in data is 10766.19, compared with 10766.19 using the original data.  
+The median number of steps taken per day calculated using the filled-in data is 10766.19, compared with 10765 using the original data.
 The values calculated from the filled-in data are almost identical to those calculated from the original, "gappy" data, indicating that the measures of centre (mean/median) are not greatly changed by filling in missing data. 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
 To examine activity patterns on weekends vs weekdays, we first add a factor indicating "weekday" or "weekend".
-```{r ActivityPatternsChk,echo=TRUE}
+
+```r
 activitycomplete$day <- as.factor(ifelse((wday(activitycomplete$date)==1)|(wday(activitycomplete$date)==7),"weekend","weekday"))  
 # Now determine the means across two separate observation periods: 2 days for weekend, 5 days for weekday
 
@@ -138,4 +155,6 @@ print(qplot(x = a.int$intervalf, y = a.int$steps, data=a.int,
             facets= dayf ~ . , geom="line",stat="identity",       
             main="Activity patterns on weekday and weekend", xlab="Interval", ylab="Mean steps per 5 min interval" ) )
 ```
+
+![plot of chunk ActivityPatternsChk](figure/ActivityPatternsChk-1.png) 
 
