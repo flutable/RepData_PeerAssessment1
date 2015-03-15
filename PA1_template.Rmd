@@ -5,17 +5,19 @@ output:
     keep_md: yes
   pdf_document: default
 ---
+## Introduction
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.  
 
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
 
 ## Loading and preprocessing the data
 ```{r LoadAndPreProcChk,echo=TRUE}
-options(scipen = 1, digits = 2)                                          # numbers > 10^5 are denoted in scientific notation, 2 sig figs
+options(scipen = 1, digits = 2)            # numbers > 10^5 in scientific notation, 2 sig figs
 library(dplyr,     warn.conflicts = FALSE)
 library(stringr,   warn.conflicts = FALSE)
 library(ggplot2,   warn.conflicts = FALSE)
 library(lubridate, warn.conflicts = FALSE)
 library(knitr,     warn.conflicts = FALSE)
-
 
 # Download data if necessary
 fnActivity <- "activity.csv"
@@ -44,7 +46,7 @@ stepsmedian <- median(activity.by.day.sum$TotalSteps, na.rm = TRUE)
 activity.by.day.sum$Date <- as.POSIXlt(strptime(activity.by.day.sum$Date, "%Y-%m-%d"))
 qplot(x=activity.by.day.sum$Date,y=activity.by.day.sum$TotalSteps,
       geom="histogram",stat="identity", 
-      xlab="Date", ylab="Steps per day")
+      xlab="Date", ylab="Steps per day", main="Total steps per day, excluding missing values")
 ```
 
 ## What is mean total number of steps taken per day?
@@ -63,10 +65,9 @@ names(activity.by.interval.mean) <- c("interval", "stepsperinterval")
 activity.by.interval.mean$interval <- str_pad(as.character(activity.by.interval.mean$interval),4,side="left",pad="0")  #convert & left pad with zeroes
 activity.by.interval.mean$interval <- as.POSIXct(strptime(activity.by.interval.mean$interval, "%H%M"))   # TODO: contains day of year as well, remove
 
-qplot(x=activity.by.interval.mean$interval, y=activity.by.interval.mean$stepsperinterval, geom="line") + 
-    scale_x_datetime(minor_breaks = "1 hour") +
-    xlab("Interval") +
-    ylab("Mean steps per interval")
+qplot(x=activity.by.interval.mean$interval, y=activity.by.interval.mean$stepsperinterval, geom="line",  
+    scale_x_datetime, minor_breaks = "1 hour", 
+    xlab="Interval", ylab="Mean steps per interval", main="Average daily activity pattern")
 ```
 
 This code determines the maximum number of steps and the interval in which this maximum occurs.
@@ -82,7 +83,7 @@ There are `r nrow(activity) - sum(complete.cases(activity))` missing values in t
 ```{r CalcMissingValsChk,echo=TRUE}
 countNA <- nrow(activity) - sum(complete.cases(activity))
 ```
-To fill a missing interval value, the strategy is to replace the missing value by the mean value for the same period over the observation period (61 days). For example, if 00:40 to 00:45 is NA on 1 October, replace it with the mean calculated from all days where there is a value; in this case the mean is `r activity.by.interval.mean$stepsperinterval[10]`.
+To fill a missing interval value, the strategy is to replace the missing value by the mean value for the same period over the observation period (61 days). For example, if 00:40 to 00:45 is NA on 1 October, replace it with the mean calculated from all days where there is a value; in this case the mean for the period 00:40 to 00:45 is `r activity.by.interval.mean$stepsperinterval[10]`.
 
 ```{r FillMissingValsChk,echo=TRUE}
 # Create a new dataset
@@ -109,7 +110,7 @@ stepsmediancomplete <- median(activitycomplete.by.day.sum$TotalSteps)
 activitycomplete.by.day.sum$Date <- as.POSIXlt(strptime(activitycomplete.by.day.sum$Date, "%Y-%m-%d"))
 qplot(x=activitycomplete.by.day.sum$Date,y=activitycomplete.by.day.sum$TotalSteps,
       geom="histogram",stat="identity", 
-      xlab="Date", ylab="Steps per day - missing values filled")
+      xlab="Date", ylab="Steps per day - missing values filled", main="Total steps per day, no missing values")
 ```
 
 The mean number of steps taken per day calculated using the filled-in data is `r stepsmeancomplete`, compared with `r stepsmean` using the original data.  
@@ -118,24 +119,26 @@ The values calculated from the filled-in data are almost identical to those calc
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-To examine activity patterns on weekends vs weekdays, we first add a factor indicating "weekday" or "weekend".
+To examine activity patterns on weekends vs weekdays, we first add a factor indicating "weekday" or "weekend", then change the interval to a
+factor so we can group it 
 ```{r ActivityPatternsChk,echo=TRUE}
 activitycomplete$day <- as.factor(ifelse((wday(activitycomplete$date)==1)|(wday(activitycomplete$date)==7),"weekend","weekday"))  
 # Now determine the means across two separate observation periods: 2 days for weekend, 5 days for weekday
 
-a <- activitycomplete  #dup
-a$date <- as.character(a$date)   #group by, avoid POSIX error
+a <- activitycomplete                    #just duplicate it.
+a$date <- as.character(a$date)           #avoid POSIX error in group_by
 
-a$interval <- as.factor(a$interval)  #so we can take the mean
+a$interval <- as.factor(a$interval)               #so we can take the mean
 names(a) <- c("steps","date","intervalf","dayf")  #indicate the latter two variables are factors
 
-a.int <- group_by(a,intervalf)  #ok so far
-#a.int.mean <- summarize(a.int,mean(steps))
-a.int$intervalf <- str_pad(as.character(a.int$intervalf),4,side="left",pad="0")
-a.int$intervalf <- as.POSIXct(strptime(a.int$intervalf, "%H%M"))
+a.int <- group_by(a, intervalf, dayf)   #group each interval in either weekday or weekend
+s     <- summarise(a.int, mean(steps))  #get the mean of each interval; gives two rows for each interval; one for weekday, one for weekend.
 
-print(qplot(x = a.int$intervalf, y = a.int$steps, data=a.int,  
-            facets= dayf ~ . , geom="line",stat="identity",       
-            main="Activity patterns on weekday and weekend", xlab="Interval", ylab="Mean steps per 5 min interval" ) )
+names(s) <- c("interval","dayf", "meansteps")  #add names
+# Convert to a POSIX format so x axis shows times. The current day is inserted, haven't figure out how to remove this.
+s$interval <- str_pad(as.character(s$interval),4,side="left",pad="0")
+s$interval <- as.POSIXlt(strptime(s$interval, "%H%M"))
+print(ggplot(s, aes(x=interval, y=meansteps)) + geom_line() + facet_grid(dayf ~ .))
 ```
 
+The patterns show that weekday activity has a higher peak in the morning with less variation during the day, compared with weekends. The peak activities occur around 9am in both cases. The weekend pattern also shows more activity later at night.
